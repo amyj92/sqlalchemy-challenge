@@ -122,11 +122,3 @@ def start_end(start_date, end_date):
 
 if __name__ == "__main__":
     app.run(debug = True)
-
-
-
-# Feedback: 
-    # However, there was no validation to handle invalid or out-of-range dates, which could cause runtime errors. 
-    # Changes Dynamic Routes Validation: Where: /api/v1.0/ and /api/v1.0// routes in honolulu_climate_analysis_app.py​(honolulu_climate_analys…). 
-            # What: Missing input validation to handle cases where users enter invalid or out-of-range dates. 
-            # Why: Without validation, the application could crash or return unexpected results if invalid inputs are provided. Add validation to ensure the input dates fall within the dataset's range. 

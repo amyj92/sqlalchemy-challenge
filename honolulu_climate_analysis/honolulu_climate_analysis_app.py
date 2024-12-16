@@ -43,6 +43,8 @@ app = Flask(__name__)
 
 most_recent_date = session.query(measurement.date).order_by(measurement.date.desc()).first()[0]
 one_year_ago = dt.datetime.strptime(most_recent_date, '%Y-%m-%d') - dt.timedelta(days = 366)
+min_date = session.query(measurement.date).order_by(measurement.date.asc()).first()[0]
+max_date = most_recent_date
 most_active_station = "USC00519281"
 
 
@@ -63,6 +65,16 @@ def hawaii_climate():
         f"&nbsp;&nbsp;&nbsp;&nbsp;Aggregate tobs data for between specific start and end dated - enter format in yyyy-mm-dd:<br/>"
         f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/v1.0/<start_date>/<end_date>"
     )
+
+# Create a validation to handle correct dates
+def validate_date(date_str):
+    try:
+        date_obj = dt.datetime.strptime(date_str, '%Y-%m-%d')
+        if date_obj < dt.datetime.strptime(min_date, '%Y-%m-%d') or date_obj > dt.datetime.strptime(max_date, '%Y-%m-%d'):
+            return False, f"Date {date_str} is out of range. Please enter a date between {min_date} and {max_date}."
+        return True, date_obj
+    except ValueError:
+        return False, f"Date {date_str} is not in the correct format (YYYY-MM-DD)."
 
 # Define the precipitation route, list all preciptiation results of the last 12 months of data, and return to a dictionary using date as the key and prcp as the value
 @app.route("/api/v1.0/precipitation")
@@ -88,6 +100,9 @@ def tobs():
 # Define a route that will aggregate and return the minimum, average, and maximum temperatures of all dates greater than a defined start date by the user
 @app.route("/api/v1.0/<start_date>")
 def start(start_date):
+    is_valid, message = validate_date(start_date)
+    if not is_valid:
+        return jsonify({"error": message}), 400
     start_date_defined_aggregations = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).filter(measurement.date >= start_date).all()
     start_date_defined_aggregations_list = list(start_date_defined_aggregations[0])
     return jsonify(start_date_defined_aggregations_list)
@@ -95,9 +110,23 @@ def start(start_date):
 # Define a route that will aggregate and return the minimum, average, and maximum temperatures for a specific date range with start and end dates defined by the user
 @app.route("/api/v1.0/<start_date>/<end_date>")
 def start_end(start_date, end_date):
+    is_valid_start, message_start = validate_date(start_date)
+    is_valid_end, message_end = validate_date(end_date)
+    if not is_valid_start:
+        return jsonify({"error": message_start}), 400
+    if not is_valid_end:
+        return jsonify({"error": message_end}), 400
     date_range_defined_aggregations = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).filter(measurement.date >= start_date).filter(measurement.date <= end_date).all()
     date_range_defined_aggregations_list = list(date_range_defined_aggregations[0])
     return jsonify(date_range_defined_aggregations_list)
 
 if __name__ == "__main__":
     app.run(debug = True)
+
+
+
+# Feedback: 
+    # However, there was no validation to handle invalid or out-of-range dates, which could cause runtime errors. 
+    # Changes Dynamic Routes Validation: Where: /api/v1.0/ and /api/v1.0// routes in honolulu_climate_analysis_app.py​(honolulu_climate_analys…). 
+            # What: Missing input validation to handle cases where users enter invalid or out-of-range dates. 
+            # Why: Without validation, the application could crash or return unexpected results if invalid inputs are provided. Add validation to ensure the input dates fall within the dataset's range. 
